@@ -2,11 +2,11 @@ name: Publish NPM packages
 
 on:
   workflow_dispatch:
-  push:
-    branches: 
-      - 'UE*'
-    paths: 
-      - '**/package.json'
+  #push:
+  #  branches: 
+  #    - 'UE*'
+  #  paths: 
+  #    - '**/package.json'
 
 # This makes the matrix of jobs to run one at a time.
 concurrency: ${{ github.workflow }}-${{ github.ref }}
