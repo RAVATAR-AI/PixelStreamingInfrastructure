@@ -27,7 +27,7 @@ echo        --start-turn        Will launch the turnserver process.
 echo        --stun              STUN server to be used, syntax: --stun stun.l.google.com:19302
 echo                            Default value: stun.l.google.com:19302
 echo        --frontend-dir      Sets the output path for the fontend build
-echo        --build             Force a rebuild of the typescript frontend even if it already exists
+echo        --build             Force a rebuild of the ravatar frontend even if it already exists
 echo        --rebuild           Force a rebuild of everything
 echo        --build-libraries   Force a rebuild of shared libraries
 echo        --build-wilbur      Force build of wilbur
@@ -222,7 +222,7 @@ IF NOT exist "%FRONTEND_DIR%" (
 IF "%BUILD_FRONTEND%"=="1" (
     rem We could replace this all with a single npm script that does all this. we do have several build-all scripts already
     rem but this does give a good reference about the dependency chain for all of this.
-    echo Building Typescript frontend...
+    echo Building Ravatar frontend...
     pushd %CD%\Common
     call %NPM% run build:esm
     popd
@@ -232,7 +232,7 @@ IF "%BUILD_FRONTEND%"=="1" (
     pushd %CD%\Frontend\ui-library
     call %NPM% run build:esm
     popd
-    pushd %CD%\Frontend\implementations\typescript
+    pushd %CD%\Frontend\implementations\ravatar
     rem Note: build:dev implicitly uses esm deps due to node16/bundler module resolution
     call %NPM% run build:dev
     popd
