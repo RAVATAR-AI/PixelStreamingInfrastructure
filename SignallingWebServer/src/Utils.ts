@@ -2,7 +2,15 @@
 import { jsonc } from 'jsonc';
 
 // A simple interface to describe the options from commander.js
-export type IProgramOptions = Record<string, any>;
+export interface IProgramOptions {
+    [key: string]: any;
+    // Authentication options
+    use_authentication?: boolean;
+    api_domain?: string;
+    license_id?: string;
+    system_user?: string;
+    session_secret?: string;
+}
 
 /**
  * Cirular reference safe version of JSON.stringify

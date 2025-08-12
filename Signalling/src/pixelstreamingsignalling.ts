@@ -8,4 +8,5 @@ export * from './SignallingServer';
 export * from './StreamerConnection';
 export * from './StreamerRegistry';
 export * from './WebServer';
+export * from './authentication';
 // keep Utils internal for now

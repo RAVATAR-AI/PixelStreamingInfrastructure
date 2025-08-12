@@ -15,7 +15,7 @@
         "declarationDir": "./dist/types",
         "moduleResolution": "bundler" // helps IDEs
     },
-    "include": ["./src/*.ts"],
+    "include": ["./src/*.ts", "./src/**/*.ts"],
     "typedocOptions": {
         "entryPoints": ["src/**/*.ts"],
         "out": "docs",

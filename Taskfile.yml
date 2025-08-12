@@ -1,0 +1,27 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  build-signalling:
+    cmds:
+      - echo "Building Signalling..."
+      - cd Signalling && npm run build; cd ..
+
+  build-signalling-web-server:
+    cmds:
+      - echo "Building Signalling Web Server..."
+      - cd SignallingWebServer && npm run build; cd ..
+
+  build-all:
+    cmds:
+      - echo "Building all components..."
+      - task build-signalling
+      - task build-signalling-web-server
+  
+  start-signalling-web-server:
+    deps:
+      - build-all
+    cmds:
+      - echo "Starting Signalling Web Server..."
+      - cd SignallingWebServer && npm run start; cd ..  

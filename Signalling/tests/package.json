@@ -1,0 +1,20 @@
+{
+  "name": "@epicgames-ps/lib-pixelstreamingsignalling-ue5.6-tests",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest --run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage --run",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^20.0.0",
+    "@types/supertest": "^2.0.12",
+    "@vitest/ui": "^1.0.0",
+    "c8": "^8.0.0",
+    "supertest": "^6.3.3",
+    "vitest": "^1.0.0"
+  }
+}

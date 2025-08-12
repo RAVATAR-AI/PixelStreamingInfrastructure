@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-import express from 'express';
+import express, { NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
 import http from 'http';
@@ -7,6 +7,7 @@ import https from 'https';
 import helmet from 'helmet';
 import { Logger } from './Logger';
 import RateLimit from 'express-rate-limit';
+import { requireAuthentication, WebServerAuthConfig } from './authentication';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const hsts = require('hsts');
@@ -39,6 +40,9 @@ export interface IWebServerConfig {
 
     // If true, connections to http will be redirected to https.
     https_redirect?: boolean;
+
+    // Authentication configuration (optional)
+    authentication?: WebServerAuthConfig;
 }
 
 /**
@@ -48,6 +52,7 @@ export interface IWebServerConfig {
 export class WebServer {
     httpServer: http.Server | undefined;
     httpsServer: https.Server | undefined;
+    private authenticationEnabled: boolean = false;
 
     constructor(app: express.Express, config: IWebServerConfig) {
         Logger.debug('Starting WebServer with config: %s', config);
@@ -72,11 +77,13 @@ export class WebServer {
 
             app.use(
                 helmet({
-                    contentSecurityPolicy: {
+                    contentSecurityPolicy: false,
+                    xFrameOptions: false
+                    /*contentSecurityPolicy: {
                         directives: {
                             'connect-src': ['*', "'self'"]
                         }
-                    }
+                    }*/
                 })
             );
 
@@ -111,7 +118,25 @@ export class WebServer {
             }
         }
 
-        app.use(express.static(config.root));
+        //If not using authetication then just move on to the next function/middleware
+        let isAuthenticated = (_redirectUrl: string, _forceAuth: boolean = false) =>
+            function (_req: any, _res: any, next: NextFunction) {
+                return next();
+            };
+
+        // Initialize authentication if configured
+        if (config.authentication) {
+            const { initAuthentication } = require('./authentication') as typeof import('./authentication');
+            const authConfig: WebServerAuthConfig = {
+                ...config.authentication,
+                payload: config.authentication.payload || {}
+            };
+            initAuthentication(app, authConfig);
+            this.authenticationEnabled = true;
+
+            isAuthenticated = requireAuthentication;
+            Logger.info('Authentication initialized');
+        }
 
         const limiter = RateLimit({
             windowMs: 60 * 1000, // 1 minute
@@ -121,23 +146,64 @@ export class WebServer {
         // apply rate limiter to all requests
         app.use(limiter);
 
-        // Request has been sent to site root, send the homepage file
-        app.get('/', function (req: any, res: any) {
-            // Try a few paths, see if any resolve to a homepage file the user has set
-            const p = path.resolve(path.join(config.root, config.homepageFile));
-            if (fs.existsSync(p)) {
-                // Send the file for browser to display it
-                res.sendFile(p);
+        // Define HTML files that don't require authentication (public access)
+        const publicHtmlFiles = ['/login.html', '/forbidden.html'];
+
+        const serveHtmlFile = (filePath: string, res: any) => {
+            const resolvedPath = path.resolve(filePath);
+            if (fs.existsSync(resolvedPath)) {
+                res.sendFile(resolvedPath);
+            } else {
+                const error = `Unable to locate file ${path.basename(filePath)}`;
+                Logger.error(error);
+                res.status(404).send(error);
+            }
+        };
+
+        app.get('*.html', function (req: any, res: any, next: any) {
+            const requestedFile: string = req.path as string;
+
+            // Skip authentication for public HTML files
+            if (publicHtmlFiles.includes(requestedFile)) {
+                next();
                 return;
             }
 
-            // Catch file doesn't exist, and send back 404 if not
-            const error = 'Unable to locate file ' + config.homepageFile;
-            Logger.error(error);
-            res.status(404).send(error);
-            return;
+            // Apply authentication for other HTML files
+            isAuthenticated('/login')(req, res, () => {
+                const filePath = path.join(config.root, requestedFile);
+                serveHtmlFile(filePath, res);
+            });
         });
 
-        /* eslint-enable @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access */
+        // Static file serving (handles non-HTML files and public HTML files)
+        app.use(express.static(config.root));
+
+        // Request has been sent to site root, send the homepage file
+        app.get('/', function (req: any, res: any, _next: any) {
+            // Always authenticate the user before serving the homepage for token-based auth
+            isAuthenticated('/login', !!config.authentication?.api_domain)(req, res, () => {
+                const homepageFilePath = path.join(config.root, config.homepageFile);
+                serveHtmlFile(homepageFilePath, res);
+            });
+        });
+
+        // Authentication-related routes
+        app.get(['/login', '/login.html'], function (_req, res) {
+            if (config.authentication?.api_domain) {
+                return res.redirect('/forbidden');
+            }
+            serveHtmlFile(path.join(config.root, 'login.html'), res);
+        });
+
+        app.get(['/forbidden', '/forbidden.html'], function (_req, res) {
+            serveHtmlFile(path.join(config.root, 'forbidden.html'), res);
+        });
+
+        // Catch-all 404 handler - serve forbidden.html for any unmatched routes
+        app.use(function (_req, res) {
+            res.status(404);
+            serveHtmlFile(path.join(config.root, 'forbidden.html'), res);
+        });
     }
 }

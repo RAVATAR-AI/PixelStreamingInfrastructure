@@ -177,6 +177,32 @@ program
         'After arguments are parsed the config.json is saved with whatever arguments were specified at launch.',
         config_file.save || false
     )
+    .option(
+        '--use_authentication',
+        'Enables authentication system. Requires HTTPS.',
+        config_file.use_authentication || false
+    )
+    .option(
+        '--api_domain <domain>',
+        'API domain for external authentication service.',
+        config_file.api_domain || ''
+    )
+    .option('--license_id <id>', 'License ID for API authentication.', config_file.license_id || '')
+    .option(
+        '--session_secret <secret>',
+        'Secret key for session encryption.',
+        config_file.session_secret || ''
+    )
+    .option(
+        '--auth_payload <json-string>',
+        'Additional payload to send in authentication requests.',
+        config_file.auth_payload || '{}'
+    )
+    .option(
+        '--system_user <username>',
+        'System user name for API authentication.',
+        config_file.system_user || ''
+    )
     .helpOption('-h, --help', 'Display this help text.')
     .allowUnknownOption() // ignore unknown options which will allow versions to be swapped out into existing scripts with maybe older/newer options
     .parse();
@@ -248,10 +274,12 @@ if (options.serve) {
         root: options.http_root,
         homepageFile: options.homepage
     };
+
     if (options.https) {
         webserverOptions.httpsPort = options.https_port;
         const sslKeyPath = path.join(__dirname, '..', options.ssl_key_path);
         const sslCertPath = path.join(__dirname, '..', options.ssl_cert_path);
+
         if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
             Logger.info(`Reading SSL key and cert. Key path: ${sslKeyPath} | Cert path: ${sslCertPath}`);
             webserverOptions.ssl_key = fs.readFileSync(sslKeyPath);
@@ -259,8 +287,25 @@ if (options.serve) {
         } else {
             Logger.warn(`No SSL key/cert found. Key path: ${sslKeyPath} | Cert path: ${sslCertPath}`);
         }
+
         webserverOptions.https_redirect = options.https_redirect;
     }
+
+    if (options.use_authentication) {
+        if (!options.https) {
+            Logger.error('Authentication requires HTTPS. Please enable HTTPS with --https flag.');
+            process.exit(1);
+        }
+
+        webserverOptions.authentication = {
+            api_domain: options.api_domain || '',
+            license_id: options.license_id || '',
+            system_user_name: options.system_user || '',
+            session_secret: options.session_secret || '',
+            payload: options.auth_payload || {}
+        };
+    }
+
     const webServer = new WebServer(app, webserverOptions);
     if (!options.https || webserverOptions.https_redirect) {
         serverOpts.httpServer = webServer.httpServer;
