@@ -5,7 +5,7 @@ import {
     Application,
     PixelStreamingApplicationStyle
 } from '@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.6';
-import { POST_MESSAGE_EVENTS, POST_MESSAGE_TARGET } from './constants';
+import { POST_MESSAGE_EVENTS, POST_MESSAGE_TARGET, PM_PS_MIC_MUTE, PM_PS_MIC_UNMUTE } from './constants';
 
 const PixelStreamingApplicationStyles = new PixelStreamingApplicationStyle();
 PixelStreamingApplicationStyles.applyStyleSheet();
@@ -56,6 +56,29 @@ document.body.onload = function () {
     stream.addEventListener('webRtcDisconnected', ({ data: { allowClickToReconnect } }) => {
         if (allowClickToReconnect && window.parent) {
             window.parent.postMessage(POST_MESSAGE_EVENTS.SESSION_CLOSE, POST_MESSAGE_TARGET);
+        }
+    });
+
+    // Listen for incoming postMessages to control microphone state
+    window.addEventListener('message', (event: MessageEvent) => {
+        const message = event.data as { type?: string } | null;
+        if (!message || typeof message.type !== 'string') {
+            return;
+        }
+
+        const messageType: string = message.type;
+        if (messageType === PM_PS_MIC_MUTE) {
+            try {
+                stream.muteMicrophone();
+            } catch (error) {
+                console.warn('Failed to mute microphone:', error);
+            }
+        } else if (messageType === PM_PS_MIC_UNMUTE) {
+            try {
+                stream.unmuteMicrophone(true);
+            } catch (error) {
+                console.warn('Failed to unmute microphone:', error);
+            }
         }
     });
 
