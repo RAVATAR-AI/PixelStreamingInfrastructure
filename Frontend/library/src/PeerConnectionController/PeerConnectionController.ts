@@ -564,14 +564,14 @@ export class PeerConnectionController {
     async setupAudioSender(hasAudioReceiver: boolean) {
         // set the audio options based on mic usage
         const audioOptions = {
-            autoGainControl: false,
-            channelCount: 1,
-            echoCancellation: false,
-            latency: 0,
-            noiseSuppression: false,
-            sampleRate: 48000,
-            sampleSize: 16,
-            volume: 1.0
+            autoGainControl: true,
+            // channelCount: 1,
+            echoCancellation: true,
+            // latency: 0,
+            noiseSuppression: true,
+            sampleRate: 16000,
+            // sampleSize: 16,
+            // volume: 1.0
         };
 
         // set the media send options
