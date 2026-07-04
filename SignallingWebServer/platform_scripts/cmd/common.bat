@@ -233,8 +233,16 @@ IF "%BUILD_FRONTEND%"=="1" (
     call %NPM% run build:esm
     popd
     pushd %CD%\Frontend\implementations\ravatar
-    rem Note: build:dev implicitly uses esm deps due to node16/bundler module resolution
-    call %NPM% run build:dev
+    rem ravatar is not a root workspace member, so ensure its deps are installed before building
+    set RAVATAR_INSTALL_DEPS=0
+    if not exist node_modules\ set RAVATAR_INSTALL_DEPS=1
+    if "%INSTALL_DEPS%"=="1" set RAVATAR_INSTALL_DEPS=1
+    if "!RAVATAR_INSTALL_DEPS!"=="1" (
+        echo Installing ravatar frontend dependencies...
+        call %NPM% install
+    )
+    rem Note: the webpack build implicitly uses esm deps due to node16/bundler module resolution
+    call %NPM% run build
     popd
     popd
 ) else (

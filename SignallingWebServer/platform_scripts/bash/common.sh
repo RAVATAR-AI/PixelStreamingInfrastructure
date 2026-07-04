@@ -22,7 +22,7 @@ function print_usage() {
         --stun              STUN server to be used, syntax: --stun stun.l.google.com:19302
                             Default value: stun.l.google.com:19302
         --frontend-dir      Sets the output path for the fontend build
-        --build             Force a rebuild of the typescript frontend even if it already exists
+        --build             Force a rebuild of the ravatar frontend even if it already exists
         --rebuild           Force a rebuild of everything
         --build-libraries   Force a rebuild of shared libraries
         --build-wilbur      Force build of wilbur
@@ -227,7 +227,7 @@ function setup_frontend() {
 	# If player.html doesn't exist, or --build passed as arg, rebuild the frontend
     echo Testing ${WEBPACK_OUTPUT_PATH}
 	if [ ! -d "${WEBPACK_OUTPUT_PATH}" ] || [ "$BUILD_FRONTEND" == "1" ] ; then
-		echo "Building Typescript Frontend."
+		echo "Building Ravatar frontend..."
 		# Using our bundled NodeJS, build the web frontend files
         pushd "${SCRIPT_DIR}/../../../Common" > /dev/null
 		npm run build:esm
@@ -238,8 +238,14 @@ function setup_frontend() {
 		pushd "${SCRIPT_DIR}/../../../Frontend/ui-library" > /dev/null
 		npm run build:esm
 		popd > /dev/null
-		pushd "${SCRIPT_DIR}/../../../Frontend/implementations/typescript" > /dev/null
-		npm run build:dev
+		pushd "${SCRIPT_DIR}/../../../Frontend/implementations/ravatar" > /dev/null
+		# ravatar is not a root workspace member, so ensure its deps are installed before building
+		if [ ! -d node_modules ] || [ "$INSTALL_DEPS" == "1" ]; then
+			echo "Installing ravatar frontend dependencies..."
+			npm install
+		fi
+		# Note: the webpack build implicitly uses esm deps due to node16/bundler module resolution
+		npm run build
 		popd > /dev/null
 	else
 		echo 'Skipping building Frontend because files already exist. Please run with "--build" to force a rebuild'
