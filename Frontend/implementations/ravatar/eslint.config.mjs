@@ -16,6 +16,9 @@ export default tseslint.config(
         files: ["src/**/*.ts"],
         rules: {
             "copyright/copyright": "off",
+            // The base rule mis-reports parameters of TypeScript function types and
+            // catch bindings; @typescript-eslint/no-unused-vars below replaces it.
+            "no-unused-vars": "off",
             "@typescript-eslint/no-unused-vars": [
                 "error",
                 {
