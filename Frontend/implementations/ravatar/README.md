@@ -19,7 +19,7 @@ This package demonstrates how to include the frontend libraries as dependencies 
 - **Override Text Overlays**: Custom handling of text overlays to prevent unwanted popup displays
 - **Touch and Keyboard Support**: Full input support including touch, keyboard, and mouse interactions
 - **Quality Controls**: Built-in quality management and viewport resolution matching
-- **Microphone Support**: Integrated microphone functionality for voice interactions
+- **Microphone Support**: Integrated microphone functionality for voice interactions, remotely controllable by the embedding widget over a two-way postMessage handshake
 
 ### Building the RAVATAR frontend
 ```bash
@@ -50,6 +50,9 @@ npm run serve
 
 # Production server
 npm run serve-prod
+
+# Unit tests (jest + ts-jest, jsdom)
+npm test
 ```
 
 ### Using the RAVATAR frontend
@@ -72,8 +75,11 @@ src/
 ├── constants.ts     # RAVATAR-specific constants
 ├── forbidden.html   # Access control page template
 ├── forbidden.ts     # Access control logic
+├── micBridge.ts     # Microphone state handshake with the parent widget
+├── micBridge.test.ts# Unit tests for the handshake state machine
 ├── player.html      # Main player page template
-└── player.ts        # Main application entry point
+├── player.ts        # Main application entry point
+└── ravatarPixelStreaming.ts  # PixelStreaming subclass exposing the mic sender
 ```
 
 ### Configuration
@@ -103,6 +109,59 @@ The RAVATAR implementation includes post message communication for seamless inte
   - `webRtcDisconnected` event triggers session close (when reconnection is allowed and reconnect attempts are exhausted)
 
 This enables external applications to respond to streaming session state changes for enhanced user experience integration.
+
+#### Microphone State Handshake
+
+In WebRTC microphone mode the pixel page owns the microphone track, while the widget owns the intent. The two sides converge through a small handshake. All messages are posted with target origin `'*'`; the pixel only posts upwards when it is actually framed (`window.parent !== window`).
+
+**Widget to pixel** (dispatched on `type`, unchanged):
+
+```typescript
+{ type: 'rvo-ps-mic-mute',   timestamp: number }
+{ type: 'rvo-ps-mic-unmute', timestamp: number }
+```
+
+**Pixel to widget** (dispatched on `name`):
+
+```typescript
+// Sent on the library's `webRtcConnected` and `videoInitialized` events, i.e.
+// whenever a microphone track appears - including after a reconnect, which
+// hands the page a brand new track.
+{
+  name: 'ravatar-ps-mic-ready',
+  reason: 'webrtc-connected' | 'video-initialized',
+  hasMicTrack: boolean,
+  enabled: boolean | null,
+  muted: boolean | null,
+  readyState: string | null,
+  label: string | null,
+  timestamp: number
+}
+
+// Sent after every mute/unmute command, including when there is no track yet
+// (then `hasMicTrack: false` and `applied: false`).
+{
+  name: 'ravatar-ps-mic-state',
+  requested: 'mute' | 'unmute',
+  applied: boolean,   // hasMicTrack && enabled === (requested === 'unmute')
+  hasMicTrack: boolean,
+  enabled: boolean | null,
+  muted: boolean | null,
+  readyState: string | null,
+  label: string | null,
+  timestamp: number
+}
+```
+
+The requested state is **sticky**: the pixel remembers the last command and re-applies it to the track before every `ravatar-ps-mic-ready`, so a WebRTC reconnect cannot silently unmute a microphone the widget muted.
+
+The handshake is additive in both directions. An older widget simply ignores message names it does not know, and a newer widget talking to an older pixel never receives a ready or acknowledgement message and keeps falling back to its periodic re-statement of the desired state.
+
+The state machine lives in `src/micBridge.ts` and takes all of its browser access (sender lookup, mute/unmute, `postMessage`, clock) as injected dependencies, so it is covered by unit tests:
+
+```bash
+npm test
+```
 
 ### Custom Overlay Handling
 The implementation overrides the default text overlay behavior to provide a cleaner user experience:
